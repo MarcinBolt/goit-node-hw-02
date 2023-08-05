@@ -1,10 +1,10 @@
-## GoIT Node.js Homework 2 ÷ 6
+# GoIT Node.js Homework 2 ÷ 6
 
-# Description:
+## Description:
  Get / Add / Find by ID / Delete contact/s (contacts.json located on server). Used HTTP methods: GET, PUT, POST, DELETE.
  Application tested on Insomnia/Postman.  
 
-# INSTRUCTIONS to hw 2 ÷ 6 in polish:
+## INSTRUCTIONS to hw 2 ÷ 6 in polish:
 Wykonaj forka tego repozytorium, aby wykonywać zadania domowe (2-6). Fork utworzy repozytorium na Twoim koncie na http://github.com
 
 Dodaj mentora jako collaboratora.
