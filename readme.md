@@ -1,8 +1,7 @@
 # GoIT Node.js Homework 2 ÷ 6
 
 ## Description:
- Get / Add / Find by ID / Delete contact/s (contacts.json located on server). Used HTTP methods: GET, PUT, POST, DELETE.
- Application tested on Insomnia/Postman.  
+Application allows to: GET / ADD / FIND BY ID / UPDATE / DELETE contact/s. The contacts list located in contacts.json file, on server. Adding, updating or deleting contact also modifies contacts.json file. Used HTTP methods: GET, PUT, POST, DELETE. Application tested on Insomnia/Postman/Browser.
 
 ## INSTRUCTIONS to hw 2 ÷ 6 in polish:
 Wykonaj forka tego repozytorium, aby wykonywać zadania domowe (2-6). Fork utworzy repozytorium na Twoim koncie na http://github.com
