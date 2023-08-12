@@ -1,16 +1,13 @@
+import express from 'express';
 import cors from 'cors';
-import express, { json } from 'express';
 import mongoose from 'mongoose';
 import 'dotenv/config';
 import router from './api/index.js';
 
 const app = express();
 
-// parse application/json
 app.use(express.json());
-// cors
 app.use(cors());
-
 app.use('/api', router);
 
 app.use((_, res, __) => {

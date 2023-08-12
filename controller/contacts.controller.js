@@ -7,6 +7,16 @@ import {
 } from '../service/contacts.service.js';
 import Joi from 'joi';
 
+const contactReqBodySchema = Joi.object({
+  name: Joi.string().min(3).max(30).required(),
+  email: Joi.string().email({ minDomainSegments: 2 }).required(),
+  phone: Joi.string().min(6).max(20).required(),
+});
+
+const favoriteReqBodySchema = Joi.object({
+  favorite: Joi.boolean().required(),
+});
+
 const get = async (req, res, next) => {
   try {
     const results = await getAllContacts();
@@ -48,16 +58,10 @@ const getById = async (req, res, next) => {
 };
 
 const create = async (req, res, next) => {
-  const reqBodySchema = Joi.object({
-    name: Joi.string().min(3).max(30).required(),
-    email: Joi.string().email({ minDomainSegments: 2 }).required(),
-    phone: Joi.string().min(6).max(20).required(),
-  });
-
-  const { value, error } = reqBodySchema.validate(req.body);
+  const { value, error } = contactReqBodySchema.validate(req.body);
   const { name, email, phone } = value;
 
-  if (!!error) {
+  if (error) {
     res.status(400).json({ message: error.message });
     return;
   }
@@ -77,17 +81,11 @@ const create = async (req, res, next) => {
 };
 
 const update = async (req, res, next) => {
-  const reqBodySchema = Joi.object({
-    name: Joi.string().min(3).max(30).required(),
-    email: Joi.string().email({ minDomainSegments: 2 }).required(),
-    phone: Joi.string().min(6).max(20).required(),
-  });
-
-  const { value, error } = reqBodySchema.validate(req.body);
+  const { value, error } = contactReqBodySchema.validate(req.body);
   const { name, email, phone } = value;
   const { id } = req.params;
 
-  if (!!error) {
+  if (error) {
     res.status(400).json({ message: error.message });
     return;
   }
@@ -115,16 +113,11 @@ const update = async (req, res, next) => {
 };
 
 const updateStatusContact = async (req, res, next) => {
-  const reqBodySchema = Joi.object({
-    favorite: Joi.boolean().required(),
-  });
-
-  const { value, error } = reqBodySchema.validate(req.body);
+  const { value, error } = favoriteReqBodySchema.validate(req.body);
   const { favorite } = value;
-  //   const { favorite = false } = req.body;
   const { id } = req.params;
 
-  if (!!error) {
+  if (error) {
     res.status(400).json({ message: 'missing field favorite' });
     return;
   }

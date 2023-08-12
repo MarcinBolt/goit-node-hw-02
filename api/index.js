@@ -1,5 +1,3 @@
-import express from 'express';
-const router = express.Router();
 import {
   get,
   getById,
@@ -8,6 +6,9 @@ import {
   updateStatusContact,
   remove,
 } from '../controller/contacts.controller.js';
+import express from 'express';
+
+const router = express.Router();
 
 router.get('/contacts', get);
 
