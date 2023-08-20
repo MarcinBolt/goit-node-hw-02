@@ -9,4 +9,4 @@ export const findUserByTokenInDB = async token => await User.findOne({ token });
 export const createUserInDB = async (email, password) => await new User({ email, password }).save();
 
 export const updateKeyInDBForUserWithId = async (field, id) =>
-  User.findByIdAndUpdate({ _id: id }, field, { new: true });
+  await User.findByIdAndUpdate({ _id: id }, field, { new: true });

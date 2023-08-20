@@ -1,21 +1,37 @@
 import Contact from './schemas/contact.schema.js';
 
-const getAllContactsFromDB = async () => Contact.find();
+const getAllContactsFromDB = async () => await Contact.find();
 
-const getContactByIdFromDB = id => Contact.findOne({ _id: id });
+const getCurrentUserContactsFromDB = async owner => await Contact.find({ owner });
 
-const createContactInDB = ({ name, email, phone, owner }) =>
-  Contact.create({ name, email, phone, owner });
+const getCurrentUserContactByIdFromDB = async (owner, id) =>
+  await Contact.findOne({ _id: id, owner });
 
-const updateContactInDB = (id, fields) =>
-  Contact.findByIdAndUpdate({ _id: id }, fields, { new: true });
+const createContactInDB = async ({ name, email, phone, owner }) =>
+  await Contact.create({ name, email, phone, owner });
 
-const removeContactFromDB = id => Contact.findByIdAndRemove({ _id: id });
+const updateCurrentUserContactInDB = async (id, { name, email, phone, favorite, owner }) => {
+  const contact = await Contact.findOne({ _id: id, owner });
+  if (!contact) {
+    return null;
+  }
+  return await Contact.findByIdAndUpdate({ _id: id }, { name, email, phone, favorite, owner }, { new: true });
+};
+
+const removeCurrentUserContactFromDB = async (id, {owner}) => {
+const contact = await Contact.findOne({ _id: id, owner });
+if (!contact) {
+  return null;
+}
+
+  return await Contact.findByIdAndRemove({ _id: id });
+};
 
 export {
   getAllContactsFromDB,
-  getContactByIdFromDB,
+  getCurrentUserContactsFromDB,
+  getCurrentUserContactByIdFromDB,
   createContactInDB,
-  updateContactInDB,
-  removeContactFromDB,
+  updateCurrentUserContactInDB,
+  removeCurrentUserContactFromDB,
 };
