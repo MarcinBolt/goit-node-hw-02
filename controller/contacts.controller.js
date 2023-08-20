@@ -1,9 +1,9 @@
 import {
-  getAllContacts,
-  getContactById,
-  createContact,
-  updateContact,
-  removeContact,
+  getAllContactsFromDB,
+  getContactByIdFromDB,
+  createContactInDB,
+  updateContactInDB,
+  removeContactFromDB,
 } from '../service/contacts.service.js';
 import Joi from 'joi';
 
@@ -17,9 +17,9 @@ const favoriteReqBodySchema = Joi.object({
   favorite: Joi.boolean().required(),
 });
 
-const get = async (req, res, next) => {
+const getUserContactsList = async (_, res, next) => {
   try {
-    const results = await getAllContacts();
+    const results = await getAllContactsFromDB();
     res.json({
       status: 'success',
       code: 200,
@@ -33,10 +33,10 @@ const get = async (req, res, next) => {
   }
 };
 
-const getById = async (req, res, next) => {
+const getContactById = async (req, res, next) => {
   const { id } = req.params;
   try {
-    const result = await getContactById(id);
+    const result = await getContactByIdFromDB(id);
     if (result) {
       res.json({
         status: 'success',
@@ -57,9 +57,10 @@ const getById = async (req, res, next) => {
   }
 };
 
-const create = async (req, res, next) => {
+const createContact = async (req, res, next) => {
   const { value, error } = contactReqBodySchema.validate(req.body);
   const { name, email, phone } = value;
+  const owner = req.user.id;
 
   if (error) {
     res.status(400).json({ message: error.message });
@@ -67,12 +68,12 @@ const create = async (req, res, next) => {
   }
 
   try {
-    const result = await createContact({ name, email, phone });
+    const contact = await createContactInDB({ name, email, phone, owner });
 
     res.status(201).json({
       status: 'success',
       code: 201,
-      data: { createdContact: result },
+      data: { createdContact: contact },
     });
   } catch (e) {
     console.error(e);
@@ -80,10 +81,11 @@ const create = async (req, res, next) => {
   }
 };
 
-const update = async (req, res, next) => {
+const updateContact = async (req, res, next) => {
   const { value, error } = contactReqBodySchema.validate(req.body);
   const { name, email, phone } = value;
   const { id } = req.params;
+  const owner = req.user.id;
 
   if (error) {
     res.status(400).json({ message: error.message });
@@ -91,7 +93,7 @@ const update = async (req, res, next) => {
   }
 
   try {
-    const result = await updateContact(id, { name, email, phone });
+    const result = await updateContactInDB(id, { name, email, phone, owner });
     if (result) {
       res.json({
         status: 'success',
@@ -123,7 +125,7 @@ const updateStatusContact = async (req, res, next) => {
   }
 
   try {
-    const result = await updateContact(id, { favorite });
+    const result = await updateContactInDB(id, { favorite });
     if (result) {
       res.json({
         status: 'success',
@@ -144,11 +146,11 @@ const updateStatusContact = async (req, res, next) => {
   }
 };
 
-const remove = async (req, res, next) => {
+const removeContact = async (req, res, next) => {
   const { id } = req.params;
 
   try {
-    const result = await removeContact(id);
+    const result = await removeContactFromDB(id);
     if (result) {
       res.json({
         status: 'success',
@@ -169,4 +171,11 @@ const remove = async (req, res, next) => {
   }
 };
 
-export { get, getById, create, update, updateStatusContact, remove };
+export {
+  getUserContactsList,
+  getContactById,
+  createContact,
+  updateContact,
+  updateStatusContact,
+  removeContact,
+};

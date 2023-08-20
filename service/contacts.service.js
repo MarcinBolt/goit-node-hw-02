@@ -1,23 +1,21 @@
 import Contact from './schemas/contact.schema.js';
 
-const getAllContacts = async () => {
-  return Contact.find();
-};
+const getAllContactsFromDB = async () => Contact.find();
 
-const getContactById = id => {
-  return Contact.findOne({ _id: id });
-};
+const getContactByIdFromDB = id => Contact.findOne({ _id: id });
 
-const createContact = ({ name, email, phone }) => {
-  return Contact.create({ name, email, phone });
-};
+const createContactInDB = ({ name, email, phone, owner }) =>
+  Contact.create({ name, email, phone, owner });
 
-const updateContact = (id, fields) => {
-  return Contact.findByIdAndUpdate({ _id: id }, fields, { new: true });
-};
+const updateContactInDB = (id, fields) =>
+  Contact.findByIdAndUpdate({ _id: id }, fields, { new: true });
 
-const removeContact = id => {
-  return Contact.findByIdAndRemove({ _id: id });
-};
+const removeContactFromDB = id => Contact.findByIdAndRemove({ _id: id });
 
-export { getAllContacts, getContactById, createContact, updateContact, removeContact };
+export {
+  getAllContactsFromDB,
+  getContactByIdFromDB,
+  createContactInDB,
+  updateContactInDB,
+  removeContactFromDB,
+};
