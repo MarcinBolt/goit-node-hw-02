@@ -5,6 +5,7 @@ import {
   loginUser,
   logoutUser,
   getCurrentUserDataFromToken,
+  updateUserSubscriptionStatus,
 } from '../controller/users.controller.js';
 
 const usersRouter = express.Router();
@@ -16,5 +17,7 @@ usersRouter.post('/users/login', loginUser);
 usersRouter.get('/users/logout', auth, logoutUser);
 
 usersRouter.get('/users/current', auth, getCurrentUserDataFromToken);
+
+usersRouter.patch('/users', auth, updateUserSubscriptionStatus);
 
 export default usersRouter;

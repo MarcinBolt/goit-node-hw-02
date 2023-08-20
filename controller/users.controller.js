@@ -16,6 +16,10 @@ const userReqBodySchema = Joi.object({
   password: Joi.string().min(7).required(),
 });
 
+const userSubscriptionReqBodySchema = Joi.object({
+  subscription: Joi.string().valid('starter', 'pro', 'business').required(),
+});
+
 const hashPassword = async password => {
   const salt = await bCrypt.genSalt(10);
   const hash = await bCrypt.hash(password, salt);
@@ -87,6 +91,7 @@ const loginUser = async (req, res, _) => {
 
     const toLowerCaseEmail = email.toLowerCase();
     const user = await findUserByEmail(toLowerCaseEmail);
+    const id = user.id;
     const isPasswordValid = await passwordValidator(password, user.password);
 
     if (!isPasswordValid) {
@@ -99,11 +104,10 @@ const loginUser = async (req, res, _) => {
     }
 
     const payload = {
-      id: user.id,
+      id,
     };
-
     const token = jwt.sign(payload, SECRET, { expiresIn: '1h' });
-    await updateKeyInDBForUserWithId({ token }, user.id);
+    await updateKeyInDBForUserWithId({ token }, id);
 
     return res.json({
       status: 'Success',
@@ -139,8 +143,9 @@ const logoutUser = async (req, res, _) => {
     }
 
     const user = await findUserByTokenInDB(token);
+    const id = user.id;
     token = null;
-    await updateKeyInDBForUserWithId({ token }, user.id);
+    await updateKeyInDBForUserWithId({ token }, id);
     return res.json({
       status: 'Success',
       code: 200,
@@ -188,10 +193,38 @@ const getCurrentUserDataFromToken = async (req, res, _) => {
   }
 };
 
+const updateUserSubscriptionStatus = async (req, res, next) => {
+  try {
+    const { value, error } = userSubscriptionReqBodySchema.validate(req.body);
+    const { subscription } = value;
+
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    const userId = req.user.id;
+
+    await updateKeyInDBForUserWithId({ subscription }, userId);
+    return res.json({
+      status: 'Success',
+      code: 200,
+      message: `User's subscription changed successfully to ${subscription}.`,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'Error',
+      code: 500,
+      message: 'Server error',
+    });
+  }
+};
+
 export {
   findUserByEmail,
   createUserIfNotExist,
   loginUser,
   logoutUser,
   getCurrentUserDataFromToken,
+  updateUserSubscriptionStatus,
 };

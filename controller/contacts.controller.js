@@ -1,5 +1,5 @@
 import {
-  getCurrentUserContactsFromDB,
+  getCurrentUserFilteredContactsFromDB,
   getCurrentUserContactByIdFromDB,
   createContactInDB,
   updateCurrentUserContactInDB,
@@ -20,25 +20,41 @@ const favoriteReqBodySchema = Joi.object({
 const getUserContactsList = async (req, res, next) => {
   try {
     const owner = req.user.id;
-    const contacts = await getCurrentUserContactsFromDB(owner);
-    return res.json({
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 20;
+    const favorite = req.query.favorite;
+
+    const data = await getCurrentUserFilteredContactsFromDB({ favorite, owner, page, limit });
+    if (!data) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: `This page of contacts were not found`,
+        data: 'Not Found',
+      });
+    }
+    const contacts = data.contacts;
+    const pagination = data.pagination;
+
+    return res.header('pagination', JSON.stringify(pagination)).json({
       status: 'success',
       code: 200,
+      pagination,
       data: {
         contacts,
       },
     });
-  } catch (e) {
-    console.error(e);
-    next(e);
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
 const getContactById = async (req, res, next) => {
-  const contactId = req.params.id;
+  const id = req.params.id;
   const owner = req.user.id;
   try {
-    const contact = await getCurrentUserContactByIdFromDB(owner, contactId);
+    const contact = await getCurrentUserContactByIdFromDB({ owner, id });
     if (contact) {
       res.json({
         status: 'success',
@@ -49,13 +65,13 @@ const getContactById = async (req, res, next) => {
       res.status(404).json({
         status: 'error',
         code: 404,
-        message: `Not found contact id: ${contactId}`,
+        message: `Not found contact id: ${id}`,
         data: 'Not Found',
       });
     }
-  } catch (e) {
-    console.error(e);
-    next(e);
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
@@ -77,9 +93,9 @@ const createContact = async (req, res, next) => {
       code: 201,
       data: { createdContact: contact },
     });
-  } catch (e) {
-    console.error(e);
-    next(e);
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
@@ -95,7 +111,7 @@ const updateContact = async (req, res, next) => {
   }
 
   try {
-    const contact = await updateCurrentUserContactInDB(id, { name, email, phone, owner });
+    const contact = await updateCurrentUserContactInDB({ id, name, email, phone, owner });
     if (contact) {
       res.json({
         status: 'success',
@@ -110,9 +126,9 @@ const updateContact = async (req, res, next) => {
         data: 'Not Found',
       });
     }
-  } catch (e) {
-    console.error(e);
-    next(e);
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
@@ -128,7 +144,7 @@ const updateStatusContact = async (req, res, next) => {
   }
 
   try {
-    const result = await updateCurrentUserContactInDB(id, { owner, favorite });
+    const result = await updateCurrentUserContactInDB({ id, owner, favorite });
     if (result) {
       res.json({
         status: 'Success',
@@ -143,9 +159,9 @@ const updateStatusContact = async (req, res, next) => {
         data: 'Not Found',
       });
     }
-  } catch (e) {
-    console.error(e);
-    next(e);
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
@@ -154,7 +170,7 @@ const removeContact = async (req, res, next) => {
   const owner = req.user.id;
 
   try {
-    const result = await removeCurrentUserContactFromDB(id, { owner });
+    const result = await removeCurrentUserContactFromDB({ id, owner });
     if (result) {
       res.json({
         status: 'success',
@@ -169,9 +185,9 @@ const removeContact = async (req, res, next) => {
         data: 'Not Found',
       });
     }
-  } catch (e) {
-    console.error(e);
-    next(e);
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
