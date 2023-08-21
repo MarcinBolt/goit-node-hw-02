@@ -1,5 +1,5 @@
 import express from 'express';
-import auth from '../api/user.auth.js';
+import auth from '../auth/user.auth.js';
 import {
   getUserContactsList,
   getContactById,
@@ -11,16 +11,16 @@ import {
 
 const contactsRouter = express.Router();
 
-contactsRouter.get('/contacts', auth, getUserContactsList);
+contactsRouter.get('/', auth, getUserContactsList);
 
-contactsRouter.get('/contacts/:id', auth, getContactById);
+contactsRouter.get('/:id', auth, getContactById);
 
-contactsRouter.post('/contacts', auth, createContact);
+contactsRouter.post('/', auth, createContact);
 
-contactsRouter.put('/contacts/:id', auth, updateContact);
+contactsRouter.put('/:id', auth, updateContact);
 
-contactsRouter.patch('/contacts/:id/favorite', auth, updateStatusContact);
+contactsRouter.patch('/:id/favorite', auth, updateStatusContact);
 
-contactsRouter.delete('/contacts/:id', auth, removeContact);
+contactsRouter.delete('/:id', auth, removeContact);
 
 export default contactsRouter;

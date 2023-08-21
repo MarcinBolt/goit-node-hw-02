@@ -103,9 +103,7 @@ const loginUser = async (req, res, _) => {
       });
     }
 
-    const payload = {
-      id,
-    };
+    const payload = { id };
     const token = jwt.sign(payload, SECRET, { expiresIn: '1h' });
     await updateKeyInDBForUserWithId({ token }, id);
 

@@ -10,18 +10,14 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
-app.use('/api', usersRouter);
-app.use('/api', contactsRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/contacts', contactsRouter);
 
 app.use((_, res, __) => {
   res.status(404).json({
     status: 'error',
     code: 404,
-    message: `Use api on routes: 
-    /api/signup - registration user {email, password}
-    /api/login - login {email, password},
-    /api/logout - logout User by delete its token,
-    /users/current - get current User data from token`,
+    message: `The given endpoint does not exist`,
     data: 'Not found',
   });
 });

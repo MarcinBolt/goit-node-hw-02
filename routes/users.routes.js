@@ -1,5 +1,5 @@
 import express from 'express';
-import auth from '../api/user.auth.js';
+import auth from '../auth/user.auth.js';
 import {
   createUserIfNotExist,
   loginUser,
@@ -10,14 +10,14 @@ import {
 
 const usersRouter = express.Router();
 
-usersRouter.post('/users/signup', createUserIfNotExist);
+usersRouter.post('/signup', createUserIfNotExist);
 
-usersRouter.post('/users/login', loginUser);
+usersRouter.post('/login', loginUser);
 
-usersRouter.get('/users/logout', auth, logoutUser);
+usersRouter.get('/logout', auth, logoutUser);
 
-usersRouter.get('/users/current', auth, getCurrentUserDataFromToken);
+usersRouter.get('/current', auth, getCurrentUserDataFromToken);
 
-usersRouter.patch('/users', auth, updateUserSubscriptionStatus);
+usersRouter.patch('/', auth, updateUserSubscriptionStatus);
 
 export default usersRouter;
