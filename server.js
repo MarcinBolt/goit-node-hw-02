@@ -2,19 +2,22 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import router from './api/index.js';
+import './config/config-passport.js';
+import usersRouter from './routes/users.routes.js';
+import contactsRouter from './routes/contacts.routes.js';
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
-app.use('/api', router);
+app.use('/api/users', usersRouter);
+app.use('/api/contacts', contactsRouter);
 
 app.use((_, res, __) => {
   res.status(404).json({
     status: 'error',
     code: 404,
-    message: 'Use api on routes: /api/contacts',
+    message: `The given endpoint does not exist`,
     data: 'Not found',
   });
 });
@@ -43,4 +46,7 @@ connection
       console.log(`Server running. Use our API on port: ${PORT}`);
     });
   })
-  .catch(err => console.log(`Server not running. Error message: ${err.message}`));
+  .catch(err => {
+    console.log(`Server not running. Error message: ${err.message}`);
+    process.exit(1);
+  });
