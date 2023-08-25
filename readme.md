@@ -15,8 +15,8 @@ Dla każdego zadania domowego utwórz nową gałąź (branch).
 
 - hw02 - on branch hw02-express
 - hw03 - on branch hw03-mongodb
-- hw04
-- hw05
+- hw04 - on branch he04-auth
+- hw05 - on branch hw-5-avatars
 - hw06
 
 Każda nowa gałąź dla zadania powinna być tworzona z gałęzi master.
