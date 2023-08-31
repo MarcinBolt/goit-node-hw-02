@@ -81,8 +81,7 @@ const createContact = async (req, res, next) => {
   const owner = req.user.id;
 
   if (error) {
-    res.status(400).json({ message: error.message });
-    return;
+    return res.status(400).json({ message: error.message });
   }
 
   try {
@@ -106,8 +105,7 @@ const updateContact = async (req, res, next) => {
   const owner = req.user.id;
 
   if (error) {
-    res.status(400).json({ message: error.message });
-    return;
+    return res.status(400).json({ message: error.message });
   }
 
   try {
@@ -139,8 +137,7 @@ const updateStatusContact = async (req, res, next) => {
   const owner = req.user.id;
 
   if (error) {
-    res.status(400).json({ message: 'missing field favorite' });
-    return;
+    return res.status(400).json({ message: 'missing field favorite' });
   }
 
   try {

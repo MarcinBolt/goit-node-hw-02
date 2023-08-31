@@ -2,16 +2,21 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import './config/config-passport.js';
+import './config/passportConfig.js';
 import usersRouter from './routes/users.routes.js';
 import contactsRouter from './routes/contacts.routes.js';
+import { AVATARS_DIR, PUBLIC_DIR } from './helpers/globalVariables.js';
+import { createDirectoryIfNotExist } from './helpers/createDir.js';
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+
 app.use('/api/users', usersRouter);
 app.use('/api/contacts', contactsRouter);
+
+app.use('/api/avatars', express.static(AVATARS_DIR));
 
 app.use((_, res, __) => {
   res.status(404).json({
@@ -42,7 +47,8 @@ const connection = mongoose.connect(uriDb, {
 
 connection
   .then(() => {
-    app.listen(PORT, function () {
+    app.listen(PORT, async () => {
+      await createDirectoryIfNotExist(PUBLIC_DIR, AVATARS_DIR);
       console.log(`Server running. Use our API on port: ${PORT}`);
     });
   })

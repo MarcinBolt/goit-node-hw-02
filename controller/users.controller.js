@@ -8,6 +8,11 @@ import jwt from 'jsonwebtoken';
 import Joi from 'joi';
 import bCrypt from 'bcryptjs';
 import 'dotenv/config';
+import fs from 'fs/promises';
+import path from 'node:path';
+import { AVATARS_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES } from '../helpers/globalVariables.js';
+import multer from 'multer';
+import gravatar from 'gravatar';
 
 const SECRET = process.env.SECRET;
 
@@ -48,7 +53,7 @@ const createUserIfNotExist = async (req, res, _) => {
     const { email, password } = value;
 
     if (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
     const toLowerCaseEmail = email.toLowerCase();
@@ -56,17 +61,24 @@ const createUserIfNotExist = async (req, res, _) => {
 
     if (user) {
       return res.status(409).json({
-        status: 'Error',
+        status: 'error',
         code: 409,
         message: 'Email in use',
         data: 'Conflict',
       });
     }
 
+    const avatarURL = gravatar.url(toLowerCaseEmail, {
+      protocol: 'https',
+      s: '100',
+      r: 'pg',
+      d: 'retro',
+    });
+
     const hashedPassword = await hashPassword(password);
-    createUserInDB(toLowerCaseEmail, hashedPassword);
+    createUserInDB(toLowerCaseEmail, hashedPassword, avatarURL);
     res.status(201).json({
-      status: 'Created',
+      status: 'created',
       code: 201,
       data: {
         user: {
@@ -86,29 +98,39 @@ const loginUser = async (req, res, _) => {
     const { email, password } = value;
 
     if (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
     const toLowerCaseEmail = email.toLowerCase();
     const user = await findUserByEmail(toLowerCaseEmail);
-    const id = user.id;
-    const isPasswordValid = await passwordValidator(password, user.password);
 
-    if (!isPasswordValid) {
+    if (!user) {
       return res.status(401).json({
-        status: 'Unauthorized',
+        status: 'unauthorized',
         code: 401,
         message: 'Email or password is wrong',
         data: 'Unauthorized',
       });
     }
 
+    const isPasswordValid = await passwordValidator(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Email or password is wrong',
+        data: 'Unauthorized',
+      });
+    }
+
+    const id = user.id;
     const payload = { id };
     const token = jwt.sign(payload, SECRET, { expiresIn: '1h' });
     await updateKeyInDBForUserWithId({ token }, id);
 
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       data: {
         token,
@@ -121,7 +143,7 @@ const loginUser = async (req, res, _) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -134,7 +156,7 @@ const logoutUser = async (req, res, _) => {
 
     if (!token) {
       return res.status(401).json({
-        status: 'Unauthorized',
+        status: 'unauthorized',
         code: 401,
         message: 'Not authorized',
       });
@@ -145,14 +167,14 @@ const logoutUser = async (req, res, _) => {
     token = null;
     await updateKeyInDBForUserWithId({ token }, id);
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       message: 'User successfully logged out',
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -165,14 +187,14 @@ const getCurrentUserDataFromToken = async (req, res, _) => {
 
     if (!token) {
       return res.status(401).json({
-        status: 'Unauthorized',
+        status: 'unauthorized',
         code: 401,
         message: 'Not authorized',
       });
     }
     const user = await findUserByTokenInDB(token);
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       data: {
         currentUser: {
@@ -184,7 +206,7 @@ const getCurrentUserDataFromToken = async (req, res, _) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -195,23 +217,87 @@ const updateUserSubscriptionStatus = async (req, res, next) => {
   try {
     const { value, error } = userSubscriptionReqBodySchema.validate(req.body);
     const { subscription } = value;
-
     if (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
     const userId = req.user.id;
 
     await updateKeyInDBForUserWithId({ subscription }, userId);
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       message: `User's subscription changed successfully to ${subscription}.`,
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
+  }
+};
+
+const checkFileBeforeUpload = (err, req, res, next) => {
+  // FILE SIZE ERROR
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      status: 'error',
+      code: 400,
+      message: `Max file size ${MAX_AVATAR_FILE_SIZE_IN_BYTES / 1000}KB allowed!`,
+    });
+  }
+
+  // INVALID FILE TYPE, message will return from fileFilter callback
+  else if (err) {
+    return res.status(415).json({ status: 'error', code: 415, message: err.message });
+  }
+
+  next(req, res, next);
+};
+
+const updateUserAvatar = async (req, res, next) => {
+  try {
+    // FILE NOT SELECTED
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'File is required! Please, add the image, if you want to update your avatar.',
+      });
+    }
+
+    const { path: temporaryName, filename } = req.file;
+    const newAvatar = path.join(AVATARS_DIR, filename);
+    const userId = req.user.id;
+    console.log(filename);
+    await updateKeyInDBForUserWithId({ avatarURL: newAvatar }, userId);
+
+    fs.rename(temporaryName, newAvatar)
+      .then(() => {
+        return res.json({
+          status: 'success',
+          code: 200,
+          message: 'New avatar added successfully.',
+          avatarURL: newAvatar,
+        });
+      })
+      .catch(err => {
+        fs.unlink(temporaryName)
+          .then(() => {
+            console.log('An error was encountered, the file has been deleted.');
+            next(err);
+          })
+          .catch(err => {
+            console.log(err);
+            next(err);
+          });
+      });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -219,10 +305,11 @@ const updateUserSubscriptionStatus = async (req, res, next) => {
 };
 
 export {
-  findUserByEmail,
   createUserIfNotExist,
   loginUser,
   logoutUser,
   getCurrentUserDataFromToken,
   updateUserSubscriptionStatus,
+  checkFileBeforeUpload,
+  updateUserAvatar,
 };
