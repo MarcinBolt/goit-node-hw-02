@@ -5,8 +5,8 @@ import 'dotenv/config';
 import './config/passportConfig.js';
 import usersRouter from './routes/users.routes.js';
 import contactsRouter from './routes/contacts.routes.js';
-import { AVATARS_DIR, PUBLIC_DIR } from './helpers/globalVariables.js';
-import { createDirectoryIfNotExist } from './helpers/createDir.js';
+import { AVATARS_DIR, PUBLIC_DIR, TMP_DIR } from './helpers/globalVariables.js';
+import { createDirIfNotExist } from './helpers/createDir.js';
 
 const app = express();
 
@@ -48,7 +48,9 @@ const connection = mongoose.connect(uriDb, {
 connection
   .then(() => {
     app.listen(PORT, async () => {
-      await createDirectoryIfNotExist(PUBLIC_DIR, AVATARS_DIR);
+      await createDirIfNotExist(PUBLIC_DIR);
+      await createDirIfNotExist(AVATARS_DIR);
+      await createDirIfNotExist(TMP_DIR);
       console.log(`Server running. Use our API on port: ${PORT}`);
     });
   })

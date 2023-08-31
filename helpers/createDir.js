@@ -1,16 +1,13 @@
 import fs from 'fs/promises';
 
-const isDirExist = folderPath =>
+const isDirExist = directory =>
   fs
-    .access(folderPath)
+    .access(directory)
     .then(() => true)
     .catch(() => false);
 
-export const createDirectoryIfNotExist = async (parentFolderPath, destinationFolderPath) => {
-  if (!(await isDirExist(parentFolderPath))) {
-    await fs.mkdir(parentFolderPath);
-  }
-  if (!(await isDirExist(destinationFolderPath))) {
-    await fs.mkdir(destinationFolderPath);
+export const createDirIfNotExist = async directory => {
+  if (!(await isDirExist(directory))) {
+    await fs.mkdir(directory);
   }
 };
