@@ -10,9 +10,10 @@ import bCrypt from 'bcryptjs';
 import 'dotenv/config';
 import fs from 'fs/promises';
 import path from 'node:path';
-import { AVATARS_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES } from '../helpers/globalVariables.js';
+import { AVATARS_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES, TMP_DIR } from '../helpers/globalVariables.js';
 import multer from 'multer';
 import gravatar from 'gravatar';
+import Jimp from 'jimp';
 
 const SECRET = process.env.SECRET;
 
@@ -268,32 +269,48 @@ const updateUserAvatar = async (req, res, next) => {
       });
     }
 
-    const { path: temporaryName, filename } = req.file;
-    const newAvatar = path.join(AVATARS_DIR, filename);
-    const userId = req.user.id;
-    console.log(filename);
-    await updateKeyInDBForUserWithId({ avatarURL: newAvatar }, userId);
+    const { path: temporaryPath, filename } = req.file;
+    const tempAvatarPath = path.join(TMP_DIR, filename);
+    const optimizedAvatarPath = path.join(AVATARS_DIR, filename);
 
-    fs.rename(temporaryName, newAvatar)
-      .then(() => {
-        return res.json({
-          status: 'success',
-          code: 200,
-          message: 'New avatar added successfully.',
-          avatarURL: newAvatar,
-        });
-      })
+    await fs
+      .rename(temporaryPath, tempAvatarPath)
+      .then(() => {})
       .catch(err => {
-        fs.unlink(temporaryName)
+        fs.unlink(temporaryPath)
           .then(() => {
             console.log('An error was encountered, the file has been deleted.');
             next(err);
           })
           .catch(err => {
-            console.log(err);
             next(err);
           });
       });
+
+    await Jimp.read(tempAvatarPath)
+      .then(imageToOptimize => {
+        return imageToOptimize.resize(250, 250).quality(60).write(optimizedAvatarPath);
+      })
+      .catch(err => {
+        next(err);
+      });
+
+    const userId = req.user.id;
+    await updateKeyInDBForUserWithId({ avatarURL: optimizedAvatarPath }, userId);
+
+    await fs
+      .unlink(tempAvatarPath)
+      .then(() => {})
+      .catch(err => {
+        next(err);
+      });
+
+    return res.json({
+      status: 'success',
+      code: 200,
+      message: 'New avatar added successfully.',
+      avatarURL: optimizedAvatarPath,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
