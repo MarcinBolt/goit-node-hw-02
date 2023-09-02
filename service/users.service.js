@@ -12,3 +12,5 @@ export const createUserInDB = async (email, password, avatarURL) =>
 export const updateKeyInDBForUserWithId = async (field, id) => {
   await User.findByIdAndUpdate({ _id: id }, field, { new: true });
 };
+
+export const deleteUserFromDB = async email => await User.deleteOne({ email });

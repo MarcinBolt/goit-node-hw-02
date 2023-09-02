@@ -2,6 +2,7 @@ import express from 'express';
 import auth from '../helpers/user.auth.js';
 import {
   createUserIfNotExist,
+  deleteUser,
   loginUser,
   logoutUser,
   getCurrentUserDataFromToken,
@@ -14,6 +15,8 @@ import upload from '../config/multerStorageConfig.js';
 const usersRouter = express.Router();
 
 usersRouter.post('/signup', createUserIfNotExist);
+
+usersRouter.delete('/delete', auth, deleteUser);
 
 usersRouter.post('/login', loginUser);
 

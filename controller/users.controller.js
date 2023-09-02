@@ -3,6 +3,7 @@ import {
   findUserByTokenInDB,
   createUserInDB,
   updateKeyInDBForUserWithId,
+  deleteUserFromDB,
 } from '../service/users.service.js';
 import jwt from 'jsonwebtoken';
 import Joi from 'joi';
@@ -85,6 +86,46 @@ const createUserIfNotExist = async (req, res, _) => {
         user: {
           email: toLowerCaseEmail,
           subscription: 'starter',
+        },
+      },
+    });
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const deleteUser = async (req, res, _) => {
+  try {
+    const { value, error } = userReqBodySchema.validate(req.body);
+    const { email, password } = value;
+
+    if (error) {
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
+    }
+
+    const userIdFromReqAuthorizedToken = req.user.id;
+    const toLowerCaseEmail = email.toLowerCase();
+    const userFromDB = await findUserByEmail(toLowerCaseEmail);
+    const isUserIdValid = userIdFromReqAuthorizedToken === userFromDB.id;
+    const isPasswordValid = await passwordValidator(password, userFromDB.password);
+
+    if (!isPasswordValid || !isUserIdValid) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Email or password is wrong',
+        data: 'Unauthorized',
+      });
+    }
+
+    deleteUserFromDB(toLowerCaseEmail);
+
+    res.status(200).json({
+      status: 'deleted',
+      code: 200,
+      data: {
+        deletedUser: {
+          email: toLowerCaseEmail,
         },
       },
     });
@@ -259,7 +300,7 @@ const checkFileBeforeUpload = (err, req, res, next) => {
   next(req, res, next);
 };
 
-const updateUserAvatar = async (req, res, next) => {
+const updateUserAvatar = async (req, res, _) => {
   try {
     // FILE NOT SELECTED
     if (!req.file) {
@@ -320,6 +361,7 @@ const updateUserAvatar = async (req, res, next) => {
 
 export {
   createUserIfNotExist,
+  deleteUser,
   loginUser,
   logoutUser,
   getCurrentUserDataFromToken,
