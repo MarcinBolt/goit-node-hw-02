@@ -1,3 +1,11 @@
+import jwt from 'jsonwebtoken';
+import Joi from 'joi';
+import fs from 'fs/promises';
+import path from 'node:path';
+import multer from 'multer';
+import gravatar from 'gravatar';
+import Jimp from 'jimp';
+import 'dotenv/config';
 import {
   findUserByEmailInDB,
   findUserByTokenInDB,
@@ -5,16 +13,8 @@ import {
   updateKeyInDBForUserWithId,
   deleteUserFromDB,
 } from '../service/users.service.js';
-import jwt from 'jsonwebtoken';
-import Joi from 'joi';
-import bCrypt from 'bcryptjs';
-import 'dotenv/config';
-import fs from 'fs/promises';
-import path from 'node:path';
 import { AVATARS_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES, TMP_DIR } from '../helpers/globalVariables.js';
-import multer from 'multer';
-import gravatar from 'gravatar';
-import Jimp from 'jimp';
+import { hashPassword, passwordValidator } from '../helpers/passwordHandling.js';
 
 const SECRET = process.env.SECRET;
 
@@ -26,19 +26,6 @@ const userReqBodySchema = Joi.object({
 const userSubscriptionReqBodySchema = Joi.object({
   subscription: Joi.string().valid('starter', 'pro', 'business').required(),
 });
-
-const hashPassword = async password => {
-  const salt = await bCrypt.genSalt(10);
-  const hash = await bCrypt.hash(password, salt);
-  return hash;
-};
-
-const validatePassword = (password, hash) => bCrypt.compare(password, hash);
-
-const passwordValidator = async (password, userPassword) => {
-  const isValidPassword = await validatePassword(password, userPassword);
-  return isValidPassword;
-};
 
 const findUserByEmail = async email => {
   try {
