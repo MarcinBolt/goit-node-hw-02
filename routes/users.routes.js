@@ -10,7 +10,7 @@ import {
   checkFileBeforeUpload,
   updateUserAvatar,
 } from '../controller/users.controller.js';
-import upload from '../config/multerStorageConfig.js';
+import upload from '../config/multerStorage.config.js';
 
 const usersRouter = express.Router();
 

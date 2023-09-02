@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import './config/passportConfig.js';
+import './config/passport.config.js';
 import usersRouter from './routes/users.routes.js';
 import contactsRouter from './routes/contacts.routes.js';
 import { AVATARS_DIR, PUBLIC_DIR, TMP_DIR } from './helpers/globalVariables.js';

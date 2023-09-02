@@ -1,10 +1,7 @@
 import jwt from 'jsonwebtoken';
 import Joi from 'joi';
-import fs from 'fs/promises';
 import path from 'node:path';
 import multer from 'multer';
-import gravatar from 'gravatar';
-import Jimp from 'jimp';
 import 'dotenv/config';
 import {
   findUserByEmailInDB,
@@ -15,6 +12,10 @@ import {
 } from '../service/users.service.js';
 import { AVATARS_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES, TMP_DIR } from '../helpers/globalVariables.js';
 import { hashPassword, passwordValidator } from '../helpers/passwordHandling.js';
+import { generateAvatarFromEmail } from '../helpers/gravatar.js';
+import { optimizeImageAndSaveItToPath } from '../helpers/imageOptimizer.js';
+import { moveFileFromOldToNewPath } from '../helpers/fileRelocator.js';
+import { removeFile } from '../helpers/fileRemover.js';
 
 const SECRET = process.env.SECRET;
 
@@ -45,8 +46,8 @@ const createUserIfNotExist = async (req, res, _) => {
       return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
-    const toLowerCaseEmail = email.toLowerCase();
-    const user = await findUserByEmail(toLowerCaseEmail);
+    const normalizedEmail = email.toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
 
     if (user) {
       return res.status(409).json({
@@ -57,21 +58,15 @@ const createUserIfNotExist = async (req, res, _) => {
       });
     }
 
-    const avatarURL = gravatar.url(toLowerCaseEmail, {
-      protocol: 'https',
-      s: '100',
-      r: 'pg',
-      d: 'retro',
-    });
-
+    const avatarURL = generateAvatarFromEmail(normalizedEmail);
     const hashedPassword = await hashPassword(password);
-    createUserInDB(toLowerCaseEmail, hashedPassword, avatarURL);
+    createUserInDB(normalizedEmail, hashedPassword, avatarURL);
     res.status(201).json({
       status: 'created',
       code: 201,
       data: {
         user: {
-          email: toLowerCaseEmail,
+          email: normalizedEmail,
           subscription: 'starter',
         },
       },
@@ -91,8 +86,8 @@ const deleteUser = async (req, res, _) => {
     }
 
     const userIdFromReqAuthorizedToken = req.user.id;
-    const toLowerCaseEmail = email.toLowerCase();
-    const userFromDB = await findUserByEmail(toLowerCaseEmail);
+    const normalizedEmail = email.toLowerCase();
+    const userFromDB = await findUserByEmail(normalizedEmail);
     const isUserIdValid = userIdFromReqAuthorizedToken === userFromDB.id;
     const isPasswordValid = await passwordValidator(password, userFromDB.password);
 
@@ -105,14 +100,14 @@ const deleteUser = async (req, res, _) => {
       });
     }
 
-    deleteUserFromDB(toLowerCaseEmail);
+    deleteUserFromDB(normalizedEmail);
 
     res.status(200).json({
       status: 'deleted',
       code: 200,
       data: {
         deletedUser: {
-          email: toLowerCaseEmail,
+          email: normalizedEmail,
         },
       },
     });
@@ -130,8 +125,8 @@ const loginUser = async (req, res, _) => {
       return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
-    const toLowerCaseEmail = email.toLowerCase();
-    const user = await findUserByEmail(toLowerCaseEmail);
+    const normalizedEmail = email.toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
 
     if (!user) {
       return res.status(401).json({
@@ -194,7 +189,9 @@ const logoutUser = async (req, res, _) => {
     const user = await findUserByTokenInDB(token);
     const id = user.id;
     token = null;
+
     await updateKeyInDBForUserWithId({ token }, id);
+
     return res.json({
       status: 'success',
       code: 200,
@@ -283,7 +280,6 @@ const checkFileBeforeUpload = (err, req, res, next) => {
   else if (err) {
     return res.status(415).json({ status: 'error', code: 415, message: err.message });
   }
-
   next(req, res, next);
 };
 
@@ -298,37 +294,16 @@ const updateUserAvatar = async (req, res, _) => {
       });
     }
 
-    const { path: temporaryPath, filename } = req.file;
+    const { path: fileFromReqLocatedInAvatarsPath, filename } = req.file;
     const tempAvatarPath = path.join(TMP_DIR, filename);
     const optimizedAvatarPath = path.join(AVATARS_DIR, filename);
 
-    await fs.rename(temporaryPath, tempAvatarPath, err => {
-      if (err) {
-        fs.unlink(temporaryPath)
-          .then(() => {
-            console.log('An error was encountered, the file has been deleted.');
-            throw err;
-          })
-          .catch(err => {
-            throw err;
-          });
-      }
-    });
-
-    await Jimp.read(tempAvatarPath)
-      .then(imageToOptimize => {
-        return imageToOptimize.resize(250, 250).quality(60).write(optimizedAvatarPath);
-      })
-      .catch(err => {
-        throw err;
-      });
+    await moveFileFromOldToNewPath(fileFromReqLocatedInAvatarsPath, tempAvatarPath);
+    await optimizeImageAndSaveItToPath(tempAvatarPath, optimizedAvatarPath);
+    removeFile(tempAvatarPath);
 
     const userId = req.user.id;
     await updateKeyInDBForUserWithId({ avatarURL: optimizedAvatarPath }, userId);
-
-    await fs.unlink(tempAvatarPath, err => {
-      if (err) throw err;
-    });
 
     return res.json({
       status: 'success',
