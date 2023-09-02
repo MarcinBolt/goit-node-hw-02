@@ -218,6 +218,7 @@ const updateUserSubscriptionStatus = async (req, res, next) => {
   try {
     const { value, error } = userSubscriptionReqBodySchema.validate(req.body);
     const { subscription } = value;
+
     if (error) {
       return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
@@ -273,37 +274,33 @@ const updateUserAvatar = async (req, res, next) => {
     const tempAvatarPath = path.join(TMP_DIR, filename);
     const optimizedAvatarPath = path.join(AVATARS_DIR, filename);
 
-    await fs
-      .rename(temporaryPath, tempAvatarPath)
-      .then(() => {})
-      .catch(err => {
+    await fs.rename(temporaryPath, tempAvatarPath, err => {
+      if (err) {
         fs.unlink(temporaryPath)
           .then(() => {
             console.log('An error was encountered, the file has been deleted.');
-            next(err);
+            throw err;
           })
           .catch(err => {
-            next(err);
+            throw err;
           });
-      });
+      }
+    });
 
     await Jimp.read(tempAvatarPath)
       .then(imageToOptimize => {
         return imageToOptimize.resize(250, 250).quality(60).write(optimizedAvatarPath);
       })
       .catch(err => {
-        next(err);
+        throw err;
       });
 
     const userId = req.user.id;
     await updateKeyInDBForUserWithId({ avatarURL: optimizedAvatarPath }, userId);
 
-    await fs
-      .unlink(tempAvatarPath)
-      .then(() => {})
-      .catch(err => {
-        next(err);
-      });
+    await fs.unlink(tempAvatarPath, err => {
+      if (err) throw err;
+    });
 
     return res.json({
       status: 'success',
