@@ -1,9 +1,13 @@
 # GoIT Node.js Homework 2 ÷ 6
 
 ## Description:
-Application allows to: GET / ADD / FIND BY ID / UPDATE / DELETE contact/s. The contacts list located in contacts.json file, on server. Adding, updating or deleting contact also modifies contacts.json file. Used HTTP methods: GET, PUT, POST, DELETE. Application tested on Insomnia/Postman/Browser.
+Application allows to: GET / ADD / FIND BY ID / UPDATE / DELETE contact/s. The contacts list located in contacts.json file, on server. Adding, updating or deleting contact also modifies contacts.json file. Used HTTP methods: GET, PUT, POST, DELETE. Application tested on Insomnia/Postman/Browser. 
+Add contacts pagination.
+Now app allows also: CREATE (SIGN UP) / DELETE / LOGIN / LOGOUT / MODIFY (subscription, create token etc.) User. 
+User auth, generate and validate tokens, password hashing and validating.
+Add jest tests: user sign up, login, logout, delete (tests e2e).
 In homework 3: 
-Saved contacts list on MongoDB database. 
+Saved contacts, and users on MongoDB. Particular user has access only to its contacts (get, modify, add, delete).
 Used Mongoose library to work on MongoDB. 
 
 ## INSTRUCTIONS to hw 2 ÷ 6 in polish:
