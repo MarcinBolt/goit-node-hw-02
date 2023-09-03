@@ -1,5 +1,5 @@
 import express from 'express';
-import auth from '../auth/user.auth.js';
+import auth from '../helpers/user.auth.js';
 import {
   getUserContactsList,
   getContactById,

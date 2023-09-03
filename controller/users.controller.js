@@ -1,37 +1,20 @@
+import multer from 'multer';
 import {
   findUserByEmailInDB,
   findUserByTokenInDB,
   createUserInDB,
   updateKeyInDBForUserWithId,
+  deleteUserFromDB,
 } from '../service/users.service.js';
-import jwt from 'jsonwebtoken';
-import Joi from 'joi';
-import bCrypt from 'bcryptjs';
-import 'dotenv/config';
-
-const SECRET = process.env.SECRET;
-
-const userReqBodySchema = Joi.object({
-  email: Joi.string().email({ minDomainSegments: 2 }).required(),
-  password: Joi.string().min(7).required(),
-});
-
-const userSubscriptionReqBodySchema = Joi.object({
-  subscription: Joi.string().valid('starter', 'pro', 'business').required(),
-});
-
-const hashPassword = async password => {
-  const salt = await bCrypt.genSalt(10);
-  const hash = await bCrypt.hash(password, salt);
-  return hash;
-};
-
-const validatePassword = (password, hash) => bCrypt.compare(password, hash);
-
-const passwordValidator = async (password, userPassword) => {
-  const isValidPassword = await validatePassword(password, userPassword);
-  return isValidPassword;
-};
+import { AVATARS_DIR, TMP_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES } from '../helpers/globalVariables.js';
+import { hashPassword, passwordValidator } from '../helpers/passwordHandling.js';
+import { generateAvatarFromEmail } from '../helpers/gravatar.js';
+import { optimizeImageAndSaveItToPath } from '../helpers/imageOptimizer.js';
+import { moveFileFromOldToNewPath } from '../helpers/fileRelocator.js';
+import { removeFile } from '../helpers/removeFile.js';
+import { createToken } from '../helpers/createToken.js';
+import { userReqBodySchema, userSubscriptionReqBodySchema } from '../helpers/joiSchemas.js';
+import { createFilePath } from '../helpers/createFilePath.js';
 
 const findUserByEmail = async email => {
   try {
@@ -48,30 +31,71 @@ const createUserIfNotExist = async (req, res, _) => {
     const { email, password } = value;
 
     if (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
-    const toLowerCaseEmail = email.toLowerCase();
-    const user = await findUserByEmail(toLowerCaseEmail);
+    const normalizedEmail = email.toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
 
     if (user) {
       return res.status(409).json({
-        status: 'Error',
+        status: 'error',
         code: 409,
         message: 'Email in use',
         data: 'Conflict',
       });
     }
 
+    const avatarURL = generateAvatarFromEmail(normalizedEmail);
     const hashedPassword = await hashPassword(password);
-    createUserInDB(toLowerCaseEmail, hashedPassword);
+    createUserInDB(normalizedEmail, hashedPassword, avatarURL);
     res.status(201).json({
-      status: 'Created',
+      status: 'created',
       code: 201,
       data: {
         user: {
-          email: toLowerCaseEmail,
+          email: normalizedEmail,
           subscription: 'starter',
+        },
+      },
+    });
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const deleteUser = async (req, res, _) => {
+  try {
+    const { value, error } = userReqBodySchema.validate(req.body);
+    const { email, password } = value;
+    const userIdFromReqAuthorizedToken = req.user.id;
+
+    if (error) {
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const userFromDB = await findUserByEmail(normalizedEmail);
+    const isUserIdValid = userIdFromReqAuthorizedToken === userFromDB.id;
+    const isPasswordValid = await passwordValidator(password, userFromDB.password);
+
+    if (!isPasswordValid || !isUserIdValid) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Email or password is wrong',
+        data: 'Unauthorized',
+      });
+    }
+
+    deleteUserFromDB(normalizedEmail);
+
+    res.status(200).json({
+      status: 'deleted',
+      code: 200,
+      data: {
+        deletedUser: {
+          email: normalizedEmail,
         },
       },
     });
@@ -86,29 +110,39 @@ const loginUser = async (req, res, _) => {
     const { email, password } = value;
 
     if (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
-    const toLowerCaseEmail = email.toLowerCase();
-    const user = await findUserByEmail(toLowerCaseEmail);
-    const id = user.id;
-    const isPasswordValid = await passwordValidator(password, user.password);
+    const normalizedEmail = email.toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
 
-    if (!isPasswordValid) {
+    if (!user) {
       return res.status(401).json({
-        status: 'Unauthorized',
+        status: 'unauthorized',
         code: 401,
         message: 'Email or password is wrong',
         data: 'Unauthorized',
       });
     }
 
+    const isPasswordValid = await passwordValidator(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Email or password is wrong',
+        data: 'Unauthorized',
+      });
+    }
+
+    const id = user.id;
     const payload = { id };
-    const token = jwt.sign(payload, SECRET, { expiresIn: '1h' });
+    const token = createToken(payload, '1h');
     await updateKeyInDBForUserWithId({ token }, id);
 
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       data: {
         token,
@@ -121,7 +155,7 @@ const loginUser = async (req, res, _) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -134,7 +168,7 @@ const logoutUser = async (req, res, _) => {
 
     if (!token) {
       return res.status(401).json({
-        status: 'Unauthorized',
+        status: 'unauthorized',
         code: 401,
         message: 'Not authorized',
       });
@@ -143,16 +177,18 @@ const logoutUser = async (req, res, _) => {
     const user = await findUserByTokenInDB(token);
     const id = user.id;
     token = null;
+
     await updateKeyInDBForUserWithId({ token }, id);
+
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       message: 'User successfully logged out',
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -165,14 +201,14 @@ const getCurrentUserDataFromToken = async (req, res, _) => {
 
     if (!token) {
       return res.status(401).json({
-        status: 'Unauthorized',
+        status: 'unauthorized',
         code: 401,
         message: 'Not authorized',
       });
     }
     const user = await findUserByTokenInDB(token);
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       data: {
         currentUser: {
@@ -184,7 +220,7 @@ const getCurrentUserDataFromToken = async (req, res, _) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -197,21 +233,71 @@ const updateUserSubscriptionStatus = async (req, res, next) => {
     const { subscription } = value;
 
     if (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
     const userId = req.user.id;
 
     await updateKeyInDBForUserWithId({ subscription }, userId);
     return res.json({
-      status: 'Success',
+      status: 'success',
       code: 200,
       message: `User's subscription changed successfully to ${subscription}.`,
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      status: 'Error',
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
+  }
+};
+
+const checkFileBeforeUpload = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      status: 'error',
+      code: 400,
+      message: `Max file size ${MAX_AVATAR_FILE_SIZE_IN_BYTES / 1000}KB allowed!`,
+    });
+  } else if (err) {
+    return res.status(415).json({ status: 'error', code: 415, message: err.message });
+  }
+  next(req, res, next);
+};
+
+const updateUserAvatar = async (req, res, _) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'File is required! Please, add the image, if you want to update your avatar.',
+      });
+    }
+
+    const { path: fileFromReqLocatedInAvatarsPath, filename } = req.file;
+    const tempAvatarPath = createFilePath(TMP_DIR, filename);
+    const optimizedAvatarPath = createFilePath(AVATARS_DIR, filename);
+
+    await moveFileFromOldToNewPath(fileFromReqLocatedInAvatarsPath, tempAvatarPath);
+    await optimizeImageAndSaveItToPath(tempAvatarPath, optimizedAvatarPath);
+    removeFile(tempAvatarPath);
+
+    const userId = req.user.id;
+    await updateKeyInDBForUserWithId({ avatarURL: optimizedAvatarPath }, userId);
+
+    return res.json({
+      status: 'success',
+      code: 200,
+      message: 'New avatar added successfully.',
+      avatarURL: optimizedAvatarPath,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'error',
       code: 500,
       message: 'Server error',
     });
@@ -219,10 +305,12 @@ const updateUserSubscriptionStatus = async (req, res, next) => {
 };
 
 export {
-  findUserByEmail,
   createUserIfNotExist,
+  deleteUser,
   loginUser,
   logoutUser,
   getCurrentUserDataFromToken,
   updateUserSubscriptionStatus,
+  checkFileBeforeUpload,
+  updateUserAvatar,
 };
