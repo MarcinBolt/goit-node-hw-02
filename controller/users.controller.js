@@ -255,17 +255,13 @@ const updateUserSubscriptionStatus = async (req, res, next) => {
 };
 
 const checkFileBeforeUpload = (err, req, res, next) => {
-  // FILE SIZE ERROR
   if (err instanceof multer.MulterError) {
     return res.status(400).json({
       status: 'error',
       code: 400,
       message: `Max file size ${MAX_AVATAR_FILE_SIZE_IN_BYTES / 1000}KB allowed!`,
     });
-  }
-
-  // INVALID FILE TYPE, message will return from fileFilter callback
-  else if (err) {
+  } else if (err) {
     return res.status(415).json({ status: 'error', code: 415, message: err.message });
   }
   next(req, res, next);
@@ -273,7 +269,6 @@ const checkFileBeforeUpload = (err, req, res, next) => {
 
 const updateUserAvatar = async (req, res, _) => {
   try {
-    // FILE NOT SELECTED
     if (!req.file) {
       return res.status(400).json({
         status: 'error',

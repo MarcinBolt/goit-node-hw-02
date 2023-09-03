@@ -49,7 +49,6 @@ describe('Auth routes', () => {
   });
 
   describe('FIRST: POST /users/login THEN: GET /users/logout', () => {
-    // Login user first, to get the valid TOKEN
     describe('POST /users/login', () => {
       it('should return 200, user token and object user with email and subscription', async () => {
         const response = await request(app).post('/api/users/login').send({
@@ -80,7 +79,6 @@ describe('Auth routes', () => {
   });
 
   describe('FIRST: POST /users/login THEN: DELETE /users/delete', () => {
-    // Login user first, to get the valid TOKEN
     describe('POST /users/login', () => {
       it('should return 200, user token and object user with email and subscription', async () => {
         const response = await request(app).post('/api/users/login').send({
