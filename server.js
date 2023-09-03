@@ -1,18 +1,12 @@
-import mongoose from 'mongoose';
+import connect from './database.js';
 import 'dotenv/config';
 import app from './app.js';
 import { AVATARS_DIR, PUBLIC_DIR, TMP_DIR } from './helpers/globalVariables.js';
 import { createDirIfNotExist } from './helpers/createDir.js';
 
 const PORT = process.env.PORT || 4000;
-const uriDb = process.env.DATABASE_URL;
 
-const connection = mongoose.connect(uriDb, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-connection
+connect()
   .then(() => {
     app.listen(PORT, async () => {
       await createDirIfNotExist(PUBLIC_DIR);

@@ -1,8 +1,4 @@
-import jwt from 'jsonwebtoken';
-import Joi from 'joi';
-import path from 'node:path';
 import multer from 'multer';
-import 'dotenv/config';
 import {
   findUserByEmailInDB,
   findUserByTokenInDB,
@@ -10,23 +6,15 @@ import {
   updateKeyInDBForUserWithId,
   deleteUserFromDB,
 } from '../service/users.service.js';
-import { AVATARS_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES, TMP_DIR } from '../helpers/globalVariables.js';
+import { AVATARS_DIR, TMP_DIR, MAX_AVATAR_FILE_SIZE_IN_BYTES } from '../helpers/globalVariables.js';
 import { hashPassword, passwordValidator } from '../helpers/passwordHandling.js';
 import { generateAvatarFromEmail } from '../helpers/gravatar.js';
 import { optimizeImageAndSaveItToPath } from '../helpers/imageOptimizer.js';
 import { moveFileFromOldToNewPath } from '../helpers/fileRelocator.js';
-import { removeFile } from '../helpers/fileRemover.js';
-
-const SECRET = process.env.SECRET;
-
-const userReqBodySchema = Joi.object({
-  email: Joi.string().email({ minDomainSegments: 2 }).required(),
-  password: Joi.string().min(7).required(),
-});
-
-const userSubscriptionReqBodySchema = Joi.object({
-  subscription: Joi.string().valid('starter', 'pro', 'business').required(),
-});
+import { removeFile } from '../helpers/removeFile.js';
+import { createToken } from '../helpers/createToken.js';
+import { userReqBodySchema, userSubscriptionReqBodySchema } from '../helpers/joiSchemas.js';
+import { createFilePath } from '../helpers/createFilePath.js';
 
 const findUserByEmail = async email => {
   try {
@@ -80,12 +68,12 @@ const deleteUser = async (req, res, _) => {
   try {
     const { value, error } = userReqBodySchema.validate(req.body);
     const { email, password } = value;
+    const userIdFromReqAuthorizedToken = req.user.id;
 
     if (error) {
       return res.status(400).json({ status: 'error', code: 400, message: error.message });
     }
 
-    const userIdFromReqAuthorizedToken = req.user.id;
     const normalizedEmail = email.toLowerCase();
     const userFromDB = await findUserByEmail(normalizedEmail);
     const isUserIdValid = userIdFromReqAuthorizedToken === userFromDB.id;
@@ -150,7 +138,7 @@ const loginUser = async (req, res, _) => {
 
     const id = user.id;
     const payload = { id };
-    const token = jwt.sign(payload, SECRET, { expiresIn: '1h' });
+    const token = createToken(payload, '1h');
     await updateKeyInDBForUserWithId({ token }, id);
 
     return res.json({
@@ -295,8 +283,8 @@ const updateUserAvatar = async (req, res, _) => {
     }
 
     const { path: fileFromReqLocatedInAvatarsPath, filename } = req.file;
-    const tempAvatarPath = path.join(TMP_DIR, filename);
-    const optimizedAvatarPath = path.join(AVATARS_DIR, filename);
+    const tempAvatarPath = createFilePath(TMP_DIR, filename);
+    const optimizedAvatarPath = createFilePath(AVATARS_DIR, filename);
 
     await moveFileFromOldToNewPath(fileFromReqLocatedInAvatarsPath, tempAvatarPath);
     await optimizeImageAndSaveItToPath(tempAvatarPath, optimizedAvatarPath);
