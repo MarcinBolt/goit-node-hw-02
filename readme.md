@@ -2,7 +2,7 @@
 
 ## Description:
 
-### Application allows to: GET / ADD / FIND BY ID / UPDATE / DELETE contact/s. The contacts list located in contacts.json file, on server. Adding, updating or deleting contact also modifies contacts.json file. Used HTTP methods: GET, PUT, POST, DELETE. Application tested on Insomnia/Postman/Browser.
+### Backend application, based on Node.JS. It allows to create (sign up), delete, log in (authenticate, authorize, create/verify token, hash/verify passwords), log out user, generate/upload user's avatar. App also allows to: get, add, find, update, delete contact/s. Database with collections of users and contacts stored in MongoDB. Applied jest tests - e2e. Application was tested with Insomnia/Postman/Browser.
 
 ### Saved contacts, and users on MongoDB. Particular user has access only to its contacts (get, modify, add, delete).
 
