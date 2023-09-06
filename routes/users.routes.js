@@ -1,7 +1,7 @@
 import express from 'express';
 import auth from '../helpers/user.auth.js';
 import {
-  createUserIfNotExist,
+  createNewUser,
   deleteUser,
   loginUser,
   logoutUser,
@@ -9,12 +9,13 @@ import {
   updateUserSubscriptionStatus,
   checkFileBeforeUpload,
   updateUserAvatar,
+  verifyUserByVerificationToken,
 } from '../controller/users.controller.js';
 import upload from '../config/multer.config.js';
 
 const usersRouter = express.Router();
 
-usersRouter.post('/signup', createUserIfNotExist);
+usersRouter.post('/signup', createNewUser);
 
 usersRouter.delete('/delete', auth, deleteUser);
 
@@ -31,6 +32,8 @@ usersRouter.patch(
   checkFileBeforeUpload,
   updateUserAvatar
 );
+
+usersRouter.get('/verify/:verificationToken', verifyUserByVerificationToken);
 
 usersRouter.patch('/', auth, updateUserSubscriptionStatus);
 

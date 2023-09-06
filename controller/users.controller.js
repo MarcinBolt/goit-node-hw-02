@@ -2,6 +2,7 @@ import multer from 'multer';
 import {
   findUserByEmailInDB,
   findUserByTokenInDB,
+  findUserByVerificationTokenInDB,
   createUserInDB,
   updateKeyInDBForUserWithId,
   deleteUserFromDB,
@@ -15,6 +16,8 @@ import { removeFile } from '../helpers/removeFile.js';
 import { createToken } from '../helpers/createToken.js';
 import { userReqBodySchema, userSubscriptionReqBodySchema } from '../helpers/joiSchemas.js';
 import { createFilePath } from '../helpers/createFilePath.js';
+import { createEmailVerificationToken } from '../helpers/createEmailVerificationToken.js';
+import send from '../config/nodemailer.config.js';
 
 const findUserByEmail = async email => {
   try {
@@ -25,7 +28,7 @@ const findUserByEmail = async email => {
   }
 };
 
-const createUserIfNotExist = async (req, res, _) => {
+const createNewUser = async (req, res, _) => {
   try {
     const { value, error } = userReqBodySchema.validate(req.body);
     const { email, password } = value;
@@ -46,9 +49,20 @@ const createUserIfNotExist = async (req, res, _) => {
       });
     }
 
-    const avatarURL = generateAvatarFromEmail(normalizedEmail);
     const hashedPassword = await hashPassword(password);
-    createUserInDB(normalizedEmail, hashedPassword, avatarURL);
+    const verificationToken = await createEmailVerificationToken();
+    const avatarURL = await generateAvatarFromEmail(normalizedEmail);
+    const isEmailSend = await send({ to: normalizedEmail, verificationToken });
+    
+    if (!isEmailSend) {
+      return res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: 'Server error',
+      });
+    }
+    await createUserInDB(normalizedEmail, hashedPassword, avatarURL, verificationToken);
+
     res.status(201).json({
       status: 'created',
       code: 201,
@@ -133,6 +147,14 @@ const loginUser = async (req, res, _) => {
         code: 401,
         message: 'Email or password is wrong',
         data: 'Unauthorized',
+      });
+    }
+
+    if (!user.verify || user.verificationToken) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Please, verify Your email',
       });
     }
 
@@ -304,8 +326,50 @@ const updateUserAvatar = async (req, res, _) => {
   }
 };
 
+const verifyUserByVerificationToken = async (req, res, _) => {
+  try {
+    let verificationToken = req.params.verificationToken;
+
+    if (!verificationToken) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Not authorized',
+      });
+    }
+
+    const user = await findUserByVerificationTokenInDB(verificationToken);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: `User not found.`,
+      });
+    }
+
+    const id = user.id;
+    verificationToken = null;
+
+    await updateKeyInDBForUserWithId({ verificationToken, verify: true }, id);
+
+    return res.json({
+      status: 'success',
+      code: 200,
+      message: 'Verification successful',
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
+  }
+};
+
 export {
-  createUserIfNotExist,
+  createNewUser,
   deleteUser,
   loginUser,
   logoutUser,
@@ -313,4 +377,5 @@ export {
   updateUserSubscriptionStatus,
   checkFileBeforeUpload,
   updateUserAvatar,
+  verifyUserByVerificationToken,
 };
