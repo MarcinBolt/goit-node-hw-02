@@ -10,6 +10,7 @@ import {
   checkFileBeforeUpload,
   updateUserAvatar,
   verifyUserByVerificationToken,
+  resendEmailWithVerificationToken,
 } from '../controller/users.controller.js';
 import upload from '../config/multer.config.js';
 
@@ -34,6 +35,8 @@ usersRouter.patch(
 );
 
 usersRouter.get('/verify/:verificationToken', verifyUserByVerificationToken);
+
+usersRouter.post('/verify/', resendEmailWithVerificationToken);
 
 usersRouter.patch('/', auth, updateUserSubscriptionStatus);
 

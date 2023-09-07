@@ -14,7 +14,11 @@ import { optimizeImageAndSaveItToPath } from '../helpers/imageOptimizer.js';
 import { moveFileFromOldToNewPath } from '../helpers/fileRelocator.js';
 import { removeFile } from '../helpers/removeFile.js';
 import { createToken } from '../helpers/createToken.js';
-import { userReqBodySchema, userSubscriptionReqBodySchema } from '../helpers/joiSchemas.js';
+import {
+  userEmailReqBodySchema,
+  userReqBodySchema,
+  userSubscriptionReqBodySchema,
+} from '../helpers/joiSchemas.js';
 import { createFilePath } from '../helpers/createFilePath.js';
 import { createEmailVerificationToken } from '../helpers/createEmailVerificationToken.js';
 import send from '../config/nodemailer.config.js';
@@ -53,7 +57,7 @@ const createNewUser = async (req, res, _) => {
     const verificationToken = await createEmailVerificationToken();
     const avatarURL = await generateAvatarFromEmail(normalizedEmail);
     const isEmailSend = await send({ to: normalizedEmail, verificationToken });
-    
+
     if (!isEmailSend) {
       return res.status(500).json({
         status: 'error',
@@ -75,6 +79,11 @@ const createNewUser = async (req, res, _) => {
     });
   } catch (err) {
     console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
   }
 };
 
@@ -115,6 +124,11 @@ const deleteUser = async (req, res, _) => {
     });
   } catch (err) {
     console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
   }
 };
 
@@ -150,7 +164,7 @@ const loginUser = async (req, res, _) => {
       });
     }
 
-    if (!user.verify || user.verificationToken) {
+    if (!user.verify) {
       return res.status(401).json({
         status: 'unauthorized',
         code: 401,
@@ -368,6 +382,63 @@ const verifyUserByVerificationToken = async (req, res, _) => {
   }
 };
 
+const resendEmailWithVerificationToken = async (req, res, _) => {
+  try {
+    const { value, error } = userEmailReqBodySchema.validate(req.body);
+    const { email } = value;
+
+    if (error) {
+      return res
+        .status(400)
+        .json({ status: 'error', code: 400, message: 'missing required field email' });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: `User not found.`,
+      });
+    }
+
+    const { verify, verificationToken } = user;
+
+    if (verify === true) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: `Verification has already been passed.`,
+      });
+    }
+
+    const isEmailSend = await send({ to: normalizedEmail, verificationToken });
+
+    if (!isEmailSend) {
+      return res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: 'Server error',
+      });
+    }
+
+    res.status(200).json({
+      status: 'Ok',
+      code: 200,
+      message: 'Verification email sent.',
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
+  }
+};
+
 export {
   createNewUser,
   deleteUser,
@@ -378,4 +449,5 @@ export {
   checkFileBeforeUpload,
   updateUserAvatar,
   verifyUserByVerificationToken,
+  resendEmailWithVerificationToken,
 };
