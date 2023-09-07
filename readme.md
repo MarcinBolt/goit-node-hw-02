@@ -2,7 +2,7 @@
 
 ## Description:
 
-### REST API. Application based on Node.JS. It allows to create (sign up), delete, log in (authenticate, authorize, create/verify token, hash/verify passwords), log out user, generate/upload user's avatar. App also allows to: get, add, find, update, delete contact/s. Database with collections of users and contacts stored in MongoDB. Applied jest tests - e2e. Application was tested with Insomnia/Postman/Browser.
+### REST API. Application based on Node.JS. It allows to create (sign up), delete, log in (authenticate, authorize, create/verify token, hash/verify passwords), log out user, generate/upload user's avatar. App also allows to: get, add, find, update, delete contact/s. Database with collections of users and contacts stored in MongoDB. Add and configure nodemailer (used Sendgrid.com as a SMTP service); send email to user with verification token, to verify email. Applied jest tests - e2e. Application was tested with Insomnia/Postman/Browser.
 
 ### Saved contacts, and users on MongoDB. Particular user has access only to its contacts (get, modify, add, delete).
 
