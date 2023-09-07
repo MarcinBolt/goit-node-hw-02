@@ -1,4 +1,5 @@
 import multer from 'multer';
+import 'dotenv/config';
 import {
   findUserByEmailInDB,
   findUserByTokenInDB,
@@ -22,6 +23,9 @@ import {
 import { createFilePath } from '../helpers/createFilePath.js';
 import { createEmailVerificationToken } from '../helpers/createEmailVerificationToken.js';
 import send from '../config/nodemailer.config.js';
+
+const testEmail = process.env.JEST_TEST_EMAIL;
+const testStaticVerificationToken = process.env.JEST_TEST_STATIC_VERIFICATION_TOKEN;
 
 const findUserByEmail = async email => {
   try {
@@ -54,8 +58,13 @@ const createNewUser = async (req, res, _) => {
     }
 
     const hashedPassword = await hashPassword(password);
-    const verificationToken = await createEmailVerificationToken();
     const avatarURL = await generateAvatarFromEmail(normalizedEmail);
+    let verificationToken = await createEmailVerificationToken();
+
+    if (email === testEmail) {
+      verificationToken = testStaticVerificationToken;
+    }
+
     const isEmailSend = await send({ to: normalizedEmail, verificationToken });
 
     if (!isEmailSend) {
@@ -67,7 +76,7 @@ const createNewUser = async (req, res, _) => {
     }
     await createUserInDB(normalizedEmail, hashedPassword, avatarURL, verificationToken);
 
-    res.status(201).json({
+    return res.status(201).json({
       status: 'created',
       code: 201,
       data: {

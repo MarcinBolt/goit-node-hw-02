@@ -23,7 +23,6 @@ const send = async ({ to, verificationToken }) => {
     subject: 'Email verification link',
     text: `Hello! Your email verification link: /users/verify/${verificationToken}`,
   };
-  console.log(`send email to: ${{ to }}`);
   return await transporter
     .sendMail(emailOptions)
     .then(info => {
