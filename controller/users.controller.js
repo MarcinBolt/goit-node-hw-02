@@ -1,7 +1,9 @@
 import multer from 'multer';
+import 'dotenv/config';
 import {
   findUserByEmailInDB,
   findUserByTokenInDB,
+  findUserByVerificationTokenInDB,
   createUserInDB,
   updateKeyInDBForUserWithId,
   deleteUserFromDB,
@@ -13,8 +15,17 @@ import { optimizeImageAndSaveItToPath } from '../helpers/imageOptimizer.js';
 import { moveFileFromOldToNewPath } from '../helpers/fileRelocator.js';
 import { removeFile } from '../helpers/removeFile.js';
 import { createToken } from '../helpers/createToken.js';
-import { userReqBodySchema, userSubscriptionReqBodySchema } from '../helpers/joiSchemas.js';
+import {
+  userEmailReqBodySchema,
+  userReqBodySchema,
+  userSubscriptionReqBodySchema,
+} from '../helpers/joiSchemas.js';
 import { createFilePath } from '../helpers/createFilePath.js';
+import { createEmailVerificationToken } from '../helpers/createEmailVerificationToken.js';
+import send from '../config/nodemailer.config.js';
+
+const testEmail = process.env.JEST_TEST_EMAIL;
+const testStaticVerificationToken = process.env.JEST_TEST_STATIC_VERIFICATION_TOKEN;
 
 const findUserByEmail = async email => {
   try {
@@ -25,7 +36,7 @@ const findUserByEmail = async email => {
   }
 };
 
-const createUserIfNotExist = async (req, res, _) => {
+const createNewUser = async (req, res, _) => {
   try {
     const { value, error } = userReqBodySchema.validate(req.body);
     const { email, password } = value;
@@ -46,10 +57,26 @@ const createUserIfNotExist = async (req, res, _) => {
       });
     }
 
-    const avatarURL = generateAvatarFromEmail(normalizedEmail);
     const hashedPassword = await hashPassword(password);
-    createUserInDB(normalizedEmail, hashedPassword, avatarURL);
-    res.status(201).json({
+    const avatarURL = await generateAvatarFromEmail(normalizedEmail);
+    let verificationToken = await createEmailVerificationToken();
+
+    if (email === testEmail) {
+      verificationToken = testStaticVerificationToken;
+    }
+
+    const isEmailSend = await send({ to: normalizedEmail, verificationToken });
+
+    if (!isEmailSend) {
+      return res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: 'Server error',
+      });
+    }
+    await createUserInDB(normalizedEmail, hashedPassword, avatarURL, verificationToken);
+
+    return res.status(201).json({
       status: 'created',
       code: 201,
       data: {
@@ -61,6 +88,11 @@ const createUserIfNotExist = async (req, res, _) => {
     });
   } catch (err) {
     console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
   }
 };
 
@@ -101,6 +133,11 @@ const deleteUser = async (req, res, _) => {
     });
   } catch (err) {
     console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
   }
 };
 
@@ -133,6 +170,14 @@ const loginUser = async (req, res, _) => {
         code: 401,
         message: 'Email or password is wrong',
         data: 'Unauthorized',
+      });
+    }
+
+    if (!user.verify) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Please, verify Your email',
       });
     }
 
@@ -304,8 +349,107 @@ const updateUserAvatar = async (req, res, _) => {
   }
 };
 
+const verifyUserByVerificationToken = async (req, res, _) => {
+  try {
+    let verificationToken = req.params.verificationToken;
+
+    if (!verificationToken) {
+      return res.status(401).json({
+        status: 'unauthorized',
+        code: 401,
+        message: 'Not authorized',
+      });
+    }
+
+    const user = await findUserByVerificationTokenInDB(verificationToken);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: `User not found.`,
+      });
+    }
+
+    const id = user.id;
+    verificationToken = null;
+
+    await updateKeyInDBForUserWithId({ verificationToken, verify: true }, id);
+
+    return res.json({
+      status: 'success',
+      code: 200,
+      message: 'Verification successful',
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
+  }
+};
+
+const resendEmailWithVerificationToken = async (req, res, _) => {
+  try {
+    const { value, error } = userEmailReqBodySchema.validate(req.body);
+    const { email } = value;
+
+    if (error) {
+      return res
+        .status(400)
+        .json({ status: 'error', code: 400, message: 'missing required field email' });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: `User not found.`,
+      });
+    }
+
+    const { verify, verificationToken } = user;
+
+    if (verify === true) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: `Verification has already been passed.`,
+      });
+    }
+
+    const isEmailSend = await send({ to: normalizedEmail, verificationToken });
+
+    if (!isEmailSend) {
+      return res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: 'Server error',
+      });
+    }
+
+    res.status(200).json({
+      status: 'Ok',
+      code: 200,
+      message: 'Verification email sent.',
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Server error',
+    });
+  }
+};
+
 export {
-  createUserIfNotExist,
+  createNewUser,
   deleteUser,
   loginUser,
   logoutUser,
@@ -313,4 +457,6 @@ export {
   updateUserSubscriptionStatus,
   checkFileBeforeUpload,
   updateUserAvatar,
+  verifyUserByVerificationToken,
+  resendEmailWithVerificationToken,
 };

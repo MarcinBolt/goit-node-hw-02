@@ -1,10 +1,10 @@
 import gravatar from 'gravatar';
 
-export const generateAvatarFromEmail = (email) => {
-return gravatar.url(email, {
-  protocol: 'https',
-  s: '100',
-  r: 'pg',
-  d: 'retro',
-});
-}
+export const generateAvatarFromEmail = async email => {
+  return await gravatar.url(email, {
+    protocol: 'https',
+    s: '100',
+    r: 'pg',
+    d: 'retro',
+  });
+};

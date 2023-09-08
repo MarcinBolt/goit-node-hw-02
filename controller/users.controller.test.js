@@ -2,11 +2,14 @@ import request from 'supertest';
 import connect from '../database.js';
 import { disconnect } from 'mongoose';
 import app from '../app.js';
+import 'dotenv/config';
 
-const testEmail = 'test@example.com';
-const testPassword = 'asdf1234';
+const testEmail = process.env.JEST_TEST_EMAIL;
+const testPassword = process.env.JEST_TEST_USER_PASSWORD;
+const testStaticVerificationToken = process.env.JEST_TEST_STATIC_VERIFICATION_TOKEN;
 const testSubscription = 'starter';
 const userLoggedOutMessage = 'User successfully logged out';
+const userVerifiedMessage = 'Verification successful';
 let TOKEN = null;
 
 describe('Auth routes', () => {
@@ -29,6 +32,15 @@ describe('Auth routes', () => {
       expect(typeof response.body.data.user.email).toBe('string');
       expect(response.body.data.user).toHaveProperty('subscription', testSubscription);
       expect(typeof response.body.data.user.subscription).toBe('string');
+    });
+  });
+
+  describe(`GET /users/verify/:testStaticVerificationToken`, () => {
+    it(`should return 200 and message about verification successful`, async () => {
+      const response = await request(app).get(`/api/users/verify/${testStaticVerificationToken}`);
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('message', userVerifiedMessage);
+      expect(typeof response.body.message).toBe('string');
     });
   });
 
